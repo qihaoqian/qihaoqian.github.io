@@ -7,7 +7,7 @@ redirect_from:
   - /about.html
 ---
 
-I am a Master's student in the [Existential Robotics Lab](https://existentialrobotics.org/) at the University of California, San Diego, advised by [Nikolay Atanasov](https://natanaso.github.io/). My research interests lie at the intersection of robotics and computer vision. I received my B.Eng. in Software Engineering from the University of Electronic Science and Technology of China (UESTC).
+I am a Master's student in the [Existential Robotics Lab](https://existentialrobotics.org/) at the University of California, San Diego, advised by [Nikolay Atanasov](https://natanaso.github.io/). My research interests lie at the intersection of robotics and computer vision. I received my B.Eng. in Software Engineering from the University of Electronic Science and Technology of China (电子科技大学, UESTC).
 
 ## Publications
 
