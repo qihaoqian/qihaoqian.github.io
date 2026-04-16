@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Audio-Driven Lip Synchronization</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <div class="tag">Deep Learning · Audio-Visual · Computer Vision</div>
+      <h1>Audio-Driven<br/>Lip Synchronization</h1>
+      <p class="subtitle">
+        A production-grade pipeline for generating photorealistic lip-synced face videos
+        from arbitrary speech audio, combining a SyncNet sync expert with a U-Net generator
+        trained via perceptual, adversarial, and audio-visual sync losses.
+      </p>
+      <div class="hero-links">
+        <a class="btn btn-primary" href="https://github.com/QihaoQian/LipSync" target="_blank">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          Code
+        </a>
+        <a class="btn btn-secondary" href="#" target="_blank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Report
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Overview -->
+  <section class="section">
+    <div class="container narrow">
+      <h2 class="section-title">Overview</h2>
+      <p>
+        Lip synchronization replaces the mouth region of a talking-head video to match a
+        target audio stream — enabling dubbing, accessibility tools, and avatar animation.
+        This project builds a full end-to-end pipeline: raw video is preprocessed into
+        aligned face crops and 80-channel Mel spectrograms, a <strong>SyncNet</strong> audio-visual
+        discriminator is trained to detect temporal alignment, and a <strong>Wav2Lip</strong>
+        U-Net generator is supervised by a three-stage loss — L1 reconstruction, VGG perceptual,
+        adversarial, and SyncNet sync — to produce high-quality, temporally coherent output frames.
+      </p>
+    </div>
+  </section>
+
+  <!-- Method -->
+  <section class="section bg-subtle">
+    <div class="container">
+      <h2 class="section-title">Method</h2>
+      <div class="method-grid">
+
+        <div class="method-card">
+          <div class="method-icon">🗂️</div>
+          <h3>Data Pipeline</h3>
+          <p>
+            Raw videos are segmented into 3-second clips at 25 fps, then processed through
+            8 sequential stages: face detection with RetinaNet-ResNet50, 5-point affine
+            alignment to 288×288, FRCRN neural denoising, and librosa Mel extraction.
+          </p>
+          <div class="formula">mel_idx = ⌊i × (80 / fps)⌋</div>
+        </div>
+
+        <div class="method-card">
+          <div class="method-icon">🔊</div>
+          <h3>SyncNet — Sync Expert</h3>
+          <p>
+            Dual-stream encoder producing 512-dim L2-normalized embeddings from 5-frame
+            visual crops (lower half only) and Mel windows. Trained with BCE loss on
+            cosine similarity. Frozen during generator training.
+          </p>
+          <div class="formula">L<sub>sync</sub> = BCE(σ(cos(a, v)), y)</div>
+        </div>
+
+        <div class="method-card">
+          <div class="method-icon">🎨</div>
+          <h3>Wav2Lip Generator</h3>
+          <p>
+            A 9-level U-Net takes a 6-channel masked face and a 512-dim audio embedding,
+            producing 288×288 RGB frames via skip-connected transposed convolutions.
+            Optional SAM spatial attention gates skip features to focus on the lip region.
+          </p>
+          <div class="formula">L = L<sub>1</sub> + LPIPS + 0.025·L<sub>adv</sub> + 0.03·L<sub>sync</sub></div>
+        </div>
+
+      </div>
+
+      <!-- Pipeline diagram -->
+      <div class="pipeline">
+        <div class="pipe-block sensor">Raw Video<br/><small>.mp4 / .avi</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block controller">Preprocess<br/><small>8 stages</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block data">Mel + Faces<br/><small>[N, 80] + 288²</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block rl">SyncNet<br/><small>sync expert</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block output">Wav2Lip<br/><small>generator</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-block robot">Output Video<br/><small>lip-synced</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section class="section">
+    <div class="container">
+      <h2 class="section-title">Architecture Detail</h2>
+      <p class="section-sub">Wav2Lip generator encoder–decoder with precise tensor shapes at each stage.</p>
+
+      <div class="arch-grid">
+
+        <!-- Audio Encoder -->
+        <div class="arch-card">
+          <div class="arch-header audio-header">
+            <span class="arch-icon">🎙️</span>
+            <div>
+              <div class="arch-title">Audio Encoder</div>
+              <div class="arch-io">[B, 1, 80, 16] → [B, 512, 1, 1]</div>
+            </div>
+          </div>
+          <div class="arch-layers">
+            <div class="arch-layer">
+              <span class="layer-name">Conv × 3</span>
+              <span class="layer-shape">[B, 32, 80, 16]</span>
+              <span class="layer-note">stride=1, residual×2</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Conv ↓</span>
+              <span class="layer-shape">[B, 64, 27, 16]</span>
+              <span class="layer-note">stride=(3,1)</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Conv ↓</span>
+              <span class="layer-shape">[B, 128, 9, 6]</span>
+              <span class="layer-note">stride=3</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Conv ↓</span>
+              <span class="layer-shape">[B, 256, 3, 3]</span>
+              <span class="layer-note">stride=(3,2)</span>
+            </div>
+            <div class="arch-layer accent-layer">
+              <span class="layer-name">Conv 3×3</span>
+              <span class="layer-shape">[B, 512, 1, 1]</span>
+              <span class="layer-note">no padding</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Face Encoder -->
+        <div class="arch-card">
+          <div class="arch-header face-header">
+            <span class="arch-icon">👤</span>
+            <div>
+              <div class="arch-title">Face Encoder (U-Net left)</div>
+              <div class="arch-io">[B, 6, 288, 288] → feat[0..8]</div>
+            </div>
+          </div>
+          <div class="arch-layers">
+            <div class="arch-layer">
+              <span class="layer-name">Block 0</span>
+              <span class="layer-shape">[B, 16, 288, 288]</span>
+              <span class="layer-note">feat[0]</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Block 1–2</span>
+              <span class="layer-shape">[B, 32, 144→72]</span>
+              <span class="layer-note">feat[1–2]</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Block 3–4</span>
+              <span class="layer-shape">[B, 64→128, 36→18]</span>
+              <span class="layer-note">feat[3–4]</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Block 5–6</span>
+              <span class="layer-shape">[B, 256→512, 9→5]</span>
+              <span class="layer-note">feat[5–6]</span>
+            </div>
+            <div class="arch-layer accent-layer">
+              <span class="layer-name">Block 7–8</span>
+              <span class="layer-shape">[B, 512, 3→1]</span>
+              <span class="layer-note">feat[7–8], no pad</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decoder -->
+        <div class="arch-card">
+          <div class="arch-header dec-header">
+            <span class="arch-icon">🖼️</span>
+            <div>
+              <div class="arch-title">Face Decoder (U-Net right)</div>
+              <div class="arch-io">audio+feat[8] → [B, 3, 288, 288]</div>
+            </div>
+          </div>
+          <div class="arch-layers">
+            <div class="arch-layer">
+              <span class="layer-name">Fuse</span>
+              <span class="layer-shape">[B, 1024, 1, 1]</span>
+              <span class="layer-note">cat(audio, feat[8])</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Up ×3</span>
+              <span class="layer-shape">[B, 1024, 3→5→9]</span>
+              <span class="layer-note">+ feat[7–5]</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Up ×3</span>
+              <span class="layer-shape">[B, 512→320, 18→36→72]</span>
+              <span class="layer-note">+ feat[4–2]</span>
+            </div>
+            <div class="arch-layer">
+              <span class="layer-name">Up ×2</span>
+              <span class="layer-shape">[B, 160→96, 144→288]</span>
+              <span class="layer-note">+ feat[1–0]</span>
+            </div>
+            <div class="arch-layer accent-layer">
+              <span class="layer-name">Output</span>
+              <span class="layer-shape">[B, 3, 288, 288]</span>
+              <span class="layer-note">Conv80→32→3, Sigmoid</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Fusion note -->
+      <div class="fusion-note">
+        <strong>Skip connections:</strong> each decoder block concatenates the transposed-conv output with
+        the corresponding encoder feature along the channel dim. Optional <strong>SAM</strong> (Spatial Attention Module)
+        gates each skip feature by avg+max channel pooling before concatenation, focusing the decoder on the
+        lip region. Each Conv2d block = <code>Conv2d → BatchNorm2d → ReLU</code>; residual adds input before activation.
+      </div>
+    </div>
+  </section>
+
+  <!-- Training Schedule -->
+  <section class="section bg-subtle">
+    <div class="container narrow">
+      <h2 class="section-title">Training Schedule</h2>
+      <p class="section-sub">Three-phase warm-up strategy to stabilise generator before introducing adversarial and sync supervision.</p>
+
+      <div class="phase-list">
+
+        <div class="phase-item">
+          <div class="phase-badge phase-1">Phase 1</div>
+          <div class="phase-body">
+            <div class="phase-title">Reconstruction Only &nbsp;<span class="phase-range">steps 0 → 15,000</span></div>
+            <p class="phase-desc">Generator trained with L1 pixel loss and VGG perceptual (LPIPS) loss only.
+            Discriminator and SyncNet gradients are off. Establishes basic face fidelity.</p>
+            <div class="formula">L = L<sub>1</sub> + 1.0 × L<sub>LPIPS</sub></div>
+          </div>
+        </div>
+
+        <div class="phase-item">
+          <div class="phase-badge phase-2">Phase 2</div>
+          <div class="phase-body">
+            <div class="phase-title">+ Adversarial &nbsp;<span class="phase-range">steps 15,000 → 60,000</span></div>
+            <p class="phase-desc">Discriminator (Wav2LipDiscriminator, 9 nonorm blocks, lower-half input)
+            enters training alongside the generator. Sharpens lip texture realism.</p>
+            <div class="formula">L = L<sub>recon</sub> + 0.025 × softplus(−D(g))</div>
+          </div>
+        </div>
+
+        <div class="phase-item">
+          <div class="phase-badge phase-3">Phase 3</div>
+          <div class="phase-body">
+            <div class="phase-title">+ Sync Loss &nbsp;<span class="phase-range">steps 60,000 → 10M</span></div>
+            <p class="phase-desc">Frozen SyncNet scores each generated frame against the driving audio.
+            BCE on cosine similarity penalises temporal misalignment, completing the full training objective.</p>
+            <div class="formula">L = L<sub>recon</sub> + 0.025·L<sub>adv</sub> + 0.03 × BCE(cos(a,v), <b>1</b>)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Preprocess Pipeline -->
+  <section class="section">
+    <div class="container">
+      <h2 class="section-title">Preprocessing Pipeline</h2>
+      <p class="section-sub">8-stage distributed pipeline (Ray) transforming raw video into model-ready tensors.</p>
+
+      <div class="preprocess-grid">
+        <div class="pp-step">
+          <div class="pp-num">01</div>
+          <div class="pp-name">Video Clipping</div>
+          <div class="pp-desc">ffmpeg segments into ~5 s clips resampled to 25 fps</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step">
+          <div class="pp-num">02</div>
+          <div class="pp-name">Fine-grain Clip</div>
+          <div class="pp-desc">MoviePy cuts into 3 s sub-clips</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step">
+          <div class="pp-num">03</div>
+          <div class="pp-name">Frame + Audio Extract</div>
+          <div class="pp-desc">JPG frames (qscale=2) + 16 kHz mono WAV</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step">
+          <div class="pp-num">04</div>
+          <div class="pp-name">Face Detection</div>
+          <div class="pp-desc">RetinaNet-ResNet50 (conf ≥ 0.99) → affine align 288×288</div>
+        </div>
+        <div class="pp-arrow mobile-hide">→</div>
+        <div class="pp-step">
+          <div class="pp-num">05</div>
+          <div class="pp-name">Audio Denoising</div>
+          <div class="pp-desc">FRCRN (ModelScope) → enhanced.wav</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step">
+          <div class="pp-num">06</div>
+          <div class="pp-name">Mel Extraction</div>
+          <div class="pp-desc">librosa STFT → 80-bin Mel, norm [−4, 4]</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step">
+          <div class="pp-num">07</div>
+          <div class="pp-name">Sync Detection</div>
+          <div class="pp-desc">SyncNet offset + confidence score per clip</div>
+        </div>
+        <div class="pp-arrow">→</div>
+        <div class="pp-step ready">
+          <div class="pp-num">✓</div>
+          <div class="pp-name">Dataset Ready</div>
+          <div class="pp-desc">Aligned faces + Mel NPY arrays</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section class="section bg-subtle">
+    <div class="container narrow">
+      <h2 class="section-title">Tech Stack</h2>
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-name">PyTorch</div>
+          <div class="tech-role">Model training & inference</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">Lightning</div>
+          <div class="tech-role">Training loop & multi-GPU</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">Ray</div>
+          <div class="tech-role">Distributed preprocessing</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">librosa</div>
+          <div class="tech-role">Mel spectrogram extraction</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">ffmpeg</div>
+          <div class="tech-role">Video I/O & frame extraction</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">DSFD / RetinaNet</div>
+          <div class="tech-role">Face detection</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">FRCRN</div>
+          <div class="tech-role">Neural audio denoising</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">LPIPS / VGG</div>
+          <div class="tech-role">Perceptual loss</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">Real-ESRGAN</div>
+          <div class="tech-role">Post-process super-res</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-name">Hydra</div>
+          <div class="tech-role">Config management</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hyperparameters -->
+  <section class="section">
+    <div class="container narrow">
+      <h2 class="section-title">Hyperparameters</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Parameter</th><th>SyncNet</th><th>Wav2Lip</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>max_steps</code></td><td>2,000,000</td><td>10,000,000</td><td>Total training steps</td></tr>
+            <tr><td><code>batch_size</code></td><td>128</td><td>6</td><td>Samples per step</td></tr>
+            <tr><td><code>learning_rate</code></td><td>5e-5</td><td>5e-5</td><td>AdamW base LR</td></tr>
+            <tr><td><code>betas</code></td><td>(0.5, 0.999)</td><td>(0.5, 0.999)</td><td>Adam momentum terms</td></tr>
+            <tr><td><code>scheduler</code></td><td>ReduceLROnPlateau</td><td>None</td><td>LR schedule</td></tr>
+            <tr><td><code>disc_start</code></td><td>—</td><td>15,000</td><td>Step to enable discriminator</td></tr>
+            <tr><td><code>sync_start</code></td><td>—</td><td>60,000</td><td>Step to enable sync loss</td></tr>
+            <tr><td><code>disc_wt</code></td><td>—</td><td>0.025</td><td>Adversarial loss weight</td></tr>
+            <tr><td><code>sync_wt</code></td><td>—</td><td>0.03</td><td>Sync loss weight</td></tr>
+            <tr><td><code>face_size</code></td><td>288 (H/2×W)</td><td>288×288</td><td>Input face resolution</td></tr>
+            <tr><td><code>mel_channels</code></td><td>80</td><td>80</td><td>Mel spectrogram bins</td></tr>
+            <tr><td><code>mel_step_size</code></td><td>16</td><td>16</td><td>Mel time steps per frame</td></tr>
+            <tr><td><code>embed_dim</code></td><td>512</td><td>512</td><td>Audio / visual embedding dim</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>LipSync &nbsp;·&nbsp; Audio-Driven Face Reenactment</p>
+      <p class="footer-note">For research and educational purposes.</p>
+    </div>
+  </footer>
+
+</body>
+</html>
