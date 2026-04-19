@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Medical Paper Abstract Structurization</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ─── Hero ──────────────────────────────────────────────────────── -->
+<header class="hero">
+  <div class="container">
+    <div class="tag">NLP · LLM Fine-tuning · Information Extraction</div>
+    <h1>Medical Paper Abstract<br/>Structurization</h1>
+    <p class="subtitle">
+      Fine-tuning LLaMA with LoRA to convert free-text medical abstracts into structured JSON —
+      a full-stack pipeline covering synthetic data generation, multi-layer quality filtering,
+      targeted loss design, and field-level F1 evaluation.
+    </p>
+    <div class="hero-links">
+      <a class="btn btn-primary" href="https://github.com/QihaoQian" target="_blank">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        Code
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-value">5,000</div>
+        <div class="stat-label">Training Samples</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">95%+</div>
+        <div class="stat-label">JSON Validity</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">F1 ↑20%</div>
+        <div class="stat-label">vs. Base Model</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">5</div>
+        <div class="stat-label">Schema Fields</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ─── Overview ─────────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container narrow">
+    <h2 class="section-title">Overview</h2>
+    <p>
+      Medical literature is growing faster than clinicians can read. Key information —
+      research objectives, methods, results, and conclusions — is buried in unstructured
+      abstract text, hindering downstream retrieval, knowledge-base construction, and
+      clinical decision support.
+    </p>
+    <p style="margin-top:14px">
+      This project builds a <strong>low-annotation-cost pipeline</strong> that fine-tunes
+      LLaMA via LoRA to extract structured JSON from free-text abstracts.
+      Rather than treating it as a simple generation task, every stage — data quality,
+      augmentation strategy, loss design, and evaluation metric — is carefully engineered
+      to address the specific failure modes of generative models on structured extraction.
+    </p>
+
+    <div class="schema-demo">
+      <div class="schema-input">
+        <div class="schema-label">Input — Free-text Abstract</div>
+        <div class="schema-text">
+          This study investigates the effect of drug A on systolic blood pressure in
+          hypertensive patients. A randomized controlled trial was conducted with 200
+          participants over 12 weeks. Results showed a significant reduction of 14 mmHg
+          (p&lt;0.001). Drug A demonstrated superior efficacy compared to placebo.
+        </div>
+      </div>
+      <div class="schema-arrow">→</div>
+      <div class="schema-output">
+        <div class="schema-label">Output — Structured JSON</div>
+        <pre class="schema-code">{
+  <span class="json-key">"Background"</span>:   <span class="json-val">"Hypertensive patients..."</span>,
+  <span class="json-key">"Objective"</span>:   <span class="json-val">"Effect of drug A on BP"</span>,
+  <span class="json-key">"Methods"</span>:    <span class="json-val">"RCT, 200 subjects, 12w"</span>,
+  <span class="json-key">"Results"</span>:    <span class="json-val">"−14 mmHg, p&lt;0.001"</span>,
+  <span class="json-key">"Conclusion"</span>: <span class="json-val">"Superior to placebo"</span>
+}</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── System Pipeline ───────────────────────────────────────────── -->
+<section class="section bg-subtle">
+  <div class="container">
+    <h2 class="section-title">System Pipeline</h2>
+    <p class="section-sub">End-to-end four-phase approach from raw data to evaluated model.</p>
+
+    <div class="pipeline">
+      <div class="pipe-block sensor">PubMed<br/><small>seed abstracts</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-block controller">GPT-3.5<br/><small>5k instructions</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-block data">Quality Filter<br/><small>JSON + embedding</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-block augment">Augmentation<br/><small>paraphrase + schema</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-block rl">LoRA SFT<br/><small>LLaMA fine-tune</small></div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-block output">Evaluation<br/><small>field-level F1</small></div>
+    </div>
+
+    <div class="phase-overview-grid">
+      <div class="phase-overview-card phase-ov-1">
+        <div class="pov-num">Phase 1</div>
+        <div class="pov-title">Data Pipeline</div>
+        <div class="pov-desc">Synthetic generation + multi-layer quality filtering system</div>
+      </div>
+      <div class="phase-overview-card phase-ov-2">
+        <div class="pov-num">Phase 2</div>
+        <div class="pov-title">Data Augmentation</div>
+        <div class="pov-desc">Paraphrase augmentation + schema perturbation for generalization</div>
+      </div>
+      <div class="phase-overview-card phase-ov-3">
+        <div class="pov-num">Phase 3</div>
+        <div class="pov-title">Training Strategy</div>
+        <div class="pov-desc">LoRA + weighted loss + curriculum learning for stable SFT</div>
+      </div>
+      <div class="phase-overview-card phase-ov-4">
+        <div class="pov-num">Phase 4</div>
+        <div class="pov-title">Evaluation</div>
+        <div class="pov-desc">Field-level token F1 with normalization and failure penalties</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Phase 1: Data Pipeline ────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Phase 1 &mdash; Data Pipeline</h2>
+    <p class="section-sub">
+      The core innovation: a multi-dimensional automated quality judgment system that
+      transforms noisy GPT-generated content into high-standard SFT data.
+    </p>
+
+    <!-- Step 1: Data generation -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge step-blue">Step 1</div>
+        <div class="step-title">Synthetic Data Generation</div>
+      </div>
+      <div class="step-body">
+        <div class="step-cols">
+          <div>
+            <p class="step-desc">
+              Real PubMed abstracts serve as seeds. GPT-3.5 is called with carefully
+              crafted prompts containing explicit schema definitions and few-shot examples
+              to generate instruction-style paired data.
+            </p>
+            <div class="step-detail-row">
+              <span class="step-key">Data Source</span>
+              <span class="step-val">PubMed abstract subset (seed)</span>
+            </div>
+            <div class="step-detail-row">
+              <span class="step-key">Generator</span>
+              <span class="step-val">GPT-3.5 API with few-shot prompting</span>
+            </div>
+            <div class="step-detail-row">
+              <span class="step-key">Output</span>
+              <span class="step-val">~5,000 instruction-style samples</span>
+            </div>
+          </div>
+          <div class="prompt-box">
+            <div class="prompt-label">Prompt Design</div>
+            <div class="prompt-text">
+              Extract structured information from the following medical abstract.
+              Return JSON with keys: Background, Objective, Methods, Results, Conclusion.
+              <br/><br/>
+              [Schema definitions + few-shot examples]
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Format validation -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge step-orange">Step 2</div>
+        <div class="step-title">Format &amp; Schema Validation</div>
+      </div>
+      <div class="step-body">
+        <div class="filter-grid">
+          <div class="filter-item">
+            <div class="filter-icon">{ }</div>
+            <div class="filter-name">JSON Parse Check</div>
+            <div class="filter-desc">Ensure bracket closure and valid JSON syntax via <code>json.loads</code></div>
+          </div>
+          <div class="filter-item">
+            <div class="filter-icon">✓</div>
+            <div class="filter-name">Schema Compliance</div>
+            <div class="filter-desc">Verify all required fields present, no missing or extra keys</div>
+          </div>
+          <div class="filter-item">
+            <div class="filter-icon">≠∅</div>
+            <div class="filter-name">Content Validity</div>
+            <div class="filter-desc">Filter empty strings, "N/A", "Not mentioned" and similar null values</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Content quality scoring -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge step-amber">Step 3</div>
+        <div class="step-title">Content Quality Scoring (Lightweight Scoring System)</div>
+      </div>
+      <div class="step-body">
+        <p class="step-desc" style="margin-bottom:16px">
+          Four-dimensional quality judgment — not just non-empty, but defining
+          what constitutes informative, trustworthy, and learnable data.
+        </p>
+        <div class="quality-table-wrap">
+          <table class="quality-table">
+            <thead>
+              <tr>
+                <th>Dimension</th>
+                <th>Method</th>
+                <th>Target Problem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="dim-badge dim-len">Length</span></td>
+                <td><code>10 &lt; len(text) &lt; 300</code> characters</td>
+                <td>Reject "N/A" entries and verbatim abstract copies</td>
+              </tr>
+              <tr>
+                <td><span class="dim-badge dim-info">Info Density</span></td>
+                <td>Keyword coverage + stopword ratio &lt; 0.7</td>
+                <td>Filter low-information boilerplate sentences</td>
+              </tr>
+              <tr>
+                <td><span class="dim-badge dim-kw">Keywords</span></td>
+                <td>Results field must include: <code>significant</code>, <code>p&lt;</code>, <code>increase</code>…</td>
+                <td>Enforce domain-relevant content in key fields</td>
+              </tr>
+              <tr>
+                <td><span class="dim-badge dim-ov">Overlap</span></td>
+                <td>Word overlap ratio with source &lt; 0.9</td>
+                <td>Detect pseudo-extraction (verbatim copying)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Embedding filter -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-badge step-green">Step 4</div>
+        <div class="step-title">Embedding Semantic Consistency Filter &mdash; Anti-Hallucination Core</div>
+      </div>
+      <div class="step-body">
+        <div class="step-cols">
+          <div>
+            <p class="step-desc">
+              The most impactful filtering step. Uses SentenceTransformer
+              (<code>all-mpnet-base-v2</code>) to compute cosine similarity between
+              each extracted field and the most semantically similar sentence in the
+              source abstract.
+            </p>
+            <div class="step-detail-row">
+              <span class="step-key">Model</span>
+              <span class="step-val">all-mpnet-base-v2 (SentenceTransformer)</span>
+            </div>
+            <div class="step-detail-row">
+              <span class="step-key">Method</span>
+              <span class="step-val">max cosine sim over per-sentence embeddings</span>
+            </div>
+            <div class="step-detail-row">
+              <span class="step-key">Effect</span>
+              <span class="step-val">Ensures extracted conclusions exist in source; prevents field confusion (Results ↔ Objective)</span>
+            </div>
+          </div>
+          <div class="emb-diagram">
+            <div class="emb-box emb-src">Source<br/>Abstract<br/><small>split into sentences</small></div>
+            <div class="emb-vs">cosine<br/>similarity</div>
+            <div class="emb-box emb-field">Extracted<br/>Field<br/><small>e.g. Results</small></div>
+            <div class="emb-result">
+              <span class="emb-pass">sim ≥ θ → keep</span>
+              <span class="emb-fail">sim &lt; θ → drop</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── Phase 2: Data Augmentation ───────────────────────────────── -->
+<section class="section bg-subtle">
+  <div class="container">
+    <h2 class="section-title">Phase 2 &mdash; Data Augmentation</h2>
+    <p class="section-sub">
+      Two complementary perturbations — one on the input space, one on the output space —
+      force the model to learn semantic-to-structure mapping rather than memorizing templates.
+    </p>
+
+    <div class="aug-grid">
+
+      <div class="aug-card">
+        <div class="aug-header aug-header-purple">
+          <div class="aug-icon">✏️</div>
+          <div>
+            <div class="aug-title">Paraphrase Augmentation</div>
+            <div class="aug-subtitle">Input-space smoothing</div>
+          </div>
+        </div>
+        <div class="aug-body">
+          <p class="aug-desc">
+            GPT-3.5 rewrites each source abstract in multiple styles — academic to
+            conversational, passive to active voice, long to short sentences — while
+            keeping the ground-truth JSON unchanged.
+          </p>
+          <div class="aug-example">
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Original</span>
+              <span class="aug-ex-text">"This study investigates the effect of drug A on blood pressure."</span>
+            </div>
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Paraphrase 1</span>
+              <span class="aug-ex-text">"This research examines how drug A influences blood pressure."</span>
+            </div>
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Paraphrase 2</span>
+              <span class="aug-ex-text">"We evaluate the impact of drug A on blood pressure levels."</span>
+            </div>
+          </div>
+          <div class="aug-effect">
+            <strong>Why it works:</strong> Without this, the model triggers extraction
+            only on specific sentence patterns (e.g., "This study investigates…").
+            With paraphrase, it learns true semantic → structure mapping.
+          </div>
+        </div>
+      </div>
+
+      <div class="aug-card">
+        <div class="aug-header aug-header-teal">
+          <div class="aug-icon">🔀</div>
+          <div>
+            <div class="aug-title">Schema Perturbation</div>
+            <div class="aug-subtitle">Output-space smoothing</div>
+          </div>
+        </div>
+        <div class="aug-body">
+          <p class="aug-desc">
+            Training data randomly shuffles the order of JSON fields.
+            The model must learn key-value mapping logic rather than position-based
+            pattern matching.
+          </p>
+          <div class="aug-example">
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Fixed order</span>
+              <span class="aug-ex-text mono">{ Background, Objective, Methods, Results, Conclusion }</span>
+            </div>
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Shuffled v1</span>
+              <span class="aug-ex-text mono">{ Methods, Results, Objective }</span>
+            </div>
+            <div class="aug-ex-row">
+              <span class="aug-ex-label">Shuffled v2</span>
+              <span class="aug-ex-text mono">{ Conclusion, Background, Methods }</span>
+            </div>
+          </div>
+          <div class="aug-effect">
+            <strong>Why it works:</strong> Models over-relying on absolute position
+            collapse when field order changes. Schema perturbation breaks this dependency.
+            Combined with curriculum learning to maintain training stability.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─── Phase 3: Training Strategy ───────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Phase 3 &mdash; Training Strategy</h2>
+    <p class="section-sub">Deep customization of the standard SFT pipeline to address format instability and domain specificity.</p>
+
+    <div class="training-grid">
+
+      <div class="train-card">
+        <div class="train-header">
+          <span class="train-num">3.1</span>
+          <span class="train-title">LoRA Configuration</span>
+        </div>
+        <div class="train-body">
+          <div class="step-detail-row">
+            <span class="step-key">Base Model</span>
+            <span class="step-val">LLaMA architecture</span>
+          </div>
+          <div class="step-detail-row">
+            <span class="step-key">Injection</span>
+            <span class="step-val">Attention projection layers (Q, V)</span>
+          </div>
+          <div class="step-detail-row">
+            <span class="step-key">Rank</span>
+            <span class="step-val">8 or 16 (performance–VRAM tradeoff)</span>
+          </div>
+          <p class="train-note">
+            Preserves the base model's general language ability while adapting
+            to structured extraction with minimal parameter overhead.
+          </p>
+        </div>
+      </div>
+
+      <div class="train-card train-card-highlight">
+        <div class="train-header">
+          <span class="train-num">3.2</span>
+          <span class="train-title">Targeted Loss Weighting <span class="key-innovation">Key Innovation</span></span>
+        </div>
+        <div class="train-body">
+          <p class="train-note" style="margin-bottom:14px">
+            Standard cross-entropy is modified with two custom weightings:
+          </p>
+          <div class="loss-row">
+            <div class="loss-item loss-format">
+              <div class="loss-item-title">Format Token Boost</div>
+              <div class="loss-item-desc">
+                JSON structural tokens (<code>{</code>, <code>}</code>, <code>"</code>)
+                receive elevated loss weight → JSON validity rises to <strong>95%+</strong>
+              </div>
+            </div>
+            <div class="loss-item loss-field">
+              <div class="loss-item-title">Field Importance Weighting</div>
+              <div class="loss-item-desc">
+                Critical fields <code>Results</code> and <code>Conclusion</code>
+                get higher loss weight → model prioritizes accuracy where it matters most
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="train-card">
+        <div class="train-header">
+          <span class="train-num">3.3</span>
+          <span class="train-title">Curriculum Learning</span>
+        </div>
+        <div class="train-body">
+          <div class="curriculum-flow">
+            <div class="curr-stage curr-stage-1">
+              <div class="curr-stage-label">Stage 1</div>
+              <div class="curr-stage-desc">Short abstracts + fixed simple schema</div>
+            </div>
+            <div class="curr-arrow">→</div>
+            <div class="curr-stage curr-stage-2">
+              <div class="curr-stage-label">Stage 2</div>
+              <div class="curr-stage-desc">Long abstracts + shuffled complex schema</div>
+            </div>
+          </div>
+          <p class="train-note" style="margin-top:12px">
+            Progressive difficulty reduces training instability (early collapse)
+            while making the schema perturbation strategy tractable.
+          </p>
+        </div>
+      </div>
+
+      <div class="train-card">
+        <div class="train-header">
+          <span class="train-num">3.4</span>
+          <span class="train-title">Vertical vs. General Capability Balance</span>
+        </div>
+        <div class="train-body">
+          <div class="step-detail-row">
+            <span class="step-key">Problem</span>
+            <span class="step-val">Fine-tuned model tends to output JSON even in casual conversation</span>
+          </div>
+          <div class="step-detail-row">
+            <span class="step-key">Solution</span>
+            <span class="step-val">Mix small amount of general instruction data (Multi-task SFT)</span>
+          </div>
+          <div class="step-detail-row">
+            <span class="step-key">Domain</span>
+            <span class="step-val">Tiny set of human-curated samples + vocabulary alignment to fix Methods/Results confusion</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Problems & Solutions -->
+    <h3 class="subsection-title">SFT Failure Modes &amp; Fixes</h3>
+    <div class="problem-list">
+      <div class="problem-item">
+        <div class="prob-badge prob-red">Problem 1</div>
+        <div class="prob-body">
+          <div class="prob-title">Unstable JSON Output</div>
+          <div class="prob-desc">Missing brackets, extra fields, malformed syntax</div>
+          <div class="prob-fix">Format token loss weighting → JSON validity 95%+</div>
+        </div>
+      </div>
+      <div class="problem-item">
+        <div class="prob-badge prob-orange">Problem 2</div>
+        <div class="prob-body">
+          <div class="prob-title">Hallucination</div>
+          <div class="prob-desc">Results field contains information absent from source abstract</div>
+          <div class="prob-fix">Embedding consistency filtering at data stage + prompt-level constraint</div>
+        </div>
+      </div>
+      <div class="problem-item">
+        <div class="prob-badge prob-amber">Problem 3</div>
+        <div class="prob-body">
+          <div class="prob-title">Template Overfitting</div>
+          <div class="prob-desc">Extraction fails when abstract uses different writing style</div>
+          <div class="prob-fix">Multi-style paraphrase augmentation</div>
+        </div>
+      </div>
+      <div class="problem-item">
+        <div class="prob-badge prob-blue">Problem 4</div>
+        <div class="prob-body">
+          <div class="prob-title">Medical Term Confusion</div>
+          <div class="prob-desc">Methods and Results fields mixed up on domain terminology</div>
+          <div class="prob-fix">Human-curated annotation samples + vocabulary alignment</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── Phase 4: Evaluation ───────────────────────────────────────── -->
+<section class="section bg-subtle">
+  <div class="container narrow">
+    <h2 class="section-title">Phase 4 &mdash; Evaluation</h2>
+    <p class="section-sub">
+      Field-level token F1, chosen over exact match for robustness to paraphrase and
+      synonym variation in medical text.
+    </p>
+
+    <div class="eval-flow">
+      <div class="eval-step">
+        <div class="eval-step-num">1</div>
+        <div class="eval-step-body">
+          <div class="eval-step-title">Parse JSON Output</div>
+          <div class="eval-step-desc">Extract each field from model output. Failed parse → all recalls = 0 (strict penalty).</div>
+        </div>
+      </div>
+      <div class="eval-connector"></div>
+      <div class="eval-step">
+        <div class="eval-step-num">2</div>
+        <div class="eval-step-body">
+          <div class="eval-step-title">Text Normalization</div>
+          <div class="eval-step-desc">Lowercase, remove punctuation, normalize numbers (e.g., "5%" ↔ "five percent") to reduce noise.</div>
+        </div>
+      </div>
+      <div class="eval-connector"></div>
+      <div class="eval-step">
+        <div class="eval-step-num">3</div>
+        <div class="eval-step-body">
+          <div class="eval-step-title">Per-Field Token F1</div>
+          <div class="eval-step-desc">For each field, compute token overlap between prediction and ground truth. Missing field → Recall = 0.</div>
+        </div>
+      </div>
+      <div class="eval-connector"></div>
+      <div class="eval-step">
+        <div class="eval-step-num">4</div>
+        <div class="eval-step-body">
+          <div class="eval-step-title">Aggregate</div>
+          <div class="eval-step-desc">Macro-average across fields. Weighted analysis gives higher importance to Results and Conclusion.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="formula-block">
+      <div class="formula-row">
+        <span class="formula-label">Precision</span>
+        <span class="formula-eq">= overlap tokens / predicted tokens</span>
+      </div>
+      <div class="formula-row">
+        <span class="formula-label">Recall</span>
+        <span class="formula-eq">= overlap tokens / ground truth tokens</span>
+      </div>
+      <div class="formula-row formula-row-highlight">
+        <span class="formula-label">F1</span>
+        <span class="formula-eq">= 2 × P × R / (P + R)&nbsp;&nbsp;[per field, then macro-averaged]</span>
+      </div>
+    </div>
+
+    <div class="fusion-note" style="margin-top:20px">
+      <strong>Why not Exact Match?</strong>
+      EM penalizes semantically equivalent outputs like "Patients improved significantly"
+      vs "Patients significantly improved" as complete failures.
+      Token F1 correctly treats these as near-perfect matches, aligning evaluation
+      with actual extraction quality.
+    </div>
+  </div>
+</section>
+
+<!-- ─── Key Results ───────────────────────────────────────────────── -->
+<section class="section">
+  <div class="container">
+    <h2 class="section-title">Key Results</h2>
+    <p class="section-sub">Outcomes from the full pipeline compared to the LLaMA base model on medical abstract structurization.</p>
+
+    <div class="results-grid">
+      <div class="result-big-card result-big-green">
+        <div class="result-big-label">Field-Level F1 Improvement</div>
+        <div class="result-big-value">↑ ~20%</div>
+        <div class="result-big-note">Medical abstract structurization task vs. base LLaMA.<br/>Range: +15% to +25% depending on field.</div>
+      </div>
+      <div class="result-big-card result-big-blue">
+        <div class="result-big-label">JSON Format Validity</div>
+        <div class="result-big-value">95%+</div>
+        <div class="result-big-note">Achieved via format token loss weighting.<br/>Baseline model: significant JSON parse failures.</div>
+      </div>
+    </div>
+
+    <div class="findings-grid" style="margin-top:20px">
+      <div class="finding-card finding-blue">
+        <div class="finding-icon">🔬</div>
+        <div class="finding-num">Finding 1</div>
+        <h3>Data Quality Outweighs Data Quantity</h3>
+        <p>
+          Multi-layer filtering (JSON validation + content scoring + embedding consistency)
+          produces a smaller but higher-quality dataset that trains more effectively than
+          raw GPT output.
+        </p>
+        <div class="finding-stat">3-layer filtering pipeline</div>
+      </div>
+
+      <div class="finding-card finding-yellow">
+        <div class="finding-icon">⚖️</div>
+        <div class="finding-num">Finding 2</div>
+        <h3>Format Token Weighting is Critical</h3>
+        <p>
+          Simply boosting loss weight on JSON structural tokens (<code>{</code>, <code>}</code>, <code>"</code>)
+          dramatically stabilizes output format — the single highest-ROI training modification.
+        </p>
+        <div class="finding-stat">JSON validity: baseline → 95%+</div>
+      </div>
+
+      <div class="finding-card finding-orange">
+        <div class="finding-icon">🎯</div>
+        <div class="finding-num">Finding 3</div>
+        <h3>Augmentation Breaks Template Overfitting</h3>
+        <p>
+          Paraphrase augmentation + schema perturbation together solve the generalization gap.
+          The model correctly extracts from unseen writing styles and arbitrary field orderings.
+        </p>
+        <div class="finding-stat">Input + output space smoothing</div>
+      </div>
+
+      <div class="finding-card finding-red">
+        <div class="finding-icon">🔄</div>
+        <div class="finding-num">Finding 4</div>
+        <h3>LoRA Preserves General Capability</h3>
+        <p>
+          Pure LoRA fine-tuning with multi-task SFT mixing maintains general conversational
+          ability while specializing for medical extraction — no catastrophic forgetting.
+        </p>
+        <div class="finding-stat">LoRA rank 8/16 + multi-task mix</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Tech Stack ────────────────────────────────────────────────── -->
+<section class="section bg-subtle">
+  <div class="container narrow">
+    <h2 class="section-title">Tech Stack</h2>
+    <div class="tech-grid">
+      <div class="tech-item">
+        <div class="tech-name">LLaMA</div>
+        <div class="tech-role">Base language model</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">LoRA / PEFT</div>
+        <div class="tech-role">Parameter-efficient fine-tuning</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">GPT-3.5 API</div>
+        <div class="tech-role">Synthetic data generation</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">SentenceTransformers</div>
+        <div class="tech-role">Embedding consistency filter</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">PyTorch</div>
+        <div class="tech-role">Training framework</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">HuggingFace</div>
+        <div class="tech-role">Model hub &amp; Transformers</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">PubMed</div>
+        <div class="tech-role">Seed abstract corpus</div>
+      </div>
+      <div class="tech-item">
+        <div class="tech-name">scikit-learn</div>
+        <div class="tech-role">Cosine similarity computation</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Footer ────────────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="container">
+    <p>Medical Paper Abstract Structurization &nbsp;·&nbsp; LLaMA + LoRA Fine-tuning</p>
+    <p class="footer-note">Qihao Qian · 2026</p>
+  </div>
+</footer>
+
+</body>
+</html>
