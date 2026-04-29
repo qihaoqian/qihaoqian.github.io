@@ -205,7 +205,7 @@
           <div class="filter-item">
             <div class="filter-icon">≠∅</div>
             <div class="filter-name">Content Validity</div>
-            <div class="filter-desc">Filter empty strings, "N/A", "Not mentioned" and similar null values</div>
+            <div class="filter-desc">Filter empty strings, "N/A", and null values</div>
           </div>
         </div>
       </div>
@@ -239,14 +239,14 @@
               </tr>
               <tr>
                 <td><span class="dim-badge dim-info">Info Density</span></td>
-                <td>Keyword coverage + stopword ratio &lt; 0.7</td>
+                <td>Ensure keyword coverage andstopword ratio &lt; 0.2</td>
                 <td>Filter low-information boilerplate sentences</td>
               </tr>
-              <tr>
+              <!-- <tr>
                 <td><span class="dim-badge dim-kw">Keywords</span></td>
                 <td>Results field must include: <code>significant</code>, <code>p&lt;</code>, <code>increase</code>…</td>
                 <td>Enforce domain-relevant content in key fields</td>
-              </tr>
+              </tr> -->
               <tr>
                 <td><span class="dim-badge dim-ov">Overlap</span></td>
                 <td>Word overlap ratio with source &lt; 0.9</td>
@@ -370,11 +370,11 @@
             </div>
             <div class="aug-ex-row">
               <span class="aug-ex-label">Shuffled v1</span>
-              <span class="aug-ex-text mono">{ Methods, Results, Objective }</span>
+              <span class="aug-ex-text mono">{ Methods, Results, Objective ... }</span>
             </div>
             <div class="aug-ex-row">
               <span class="aug-ex-label">Shuffled v2</span>
-              <span class="aug-ex-text mono">{ Conclusion, Background, Methods }</span>
+              <span class="aug-ex-text mono">{ Conclusion, Background, Methods ...}</span>
             </div>
           </div>
           <div class="aug-effect">
