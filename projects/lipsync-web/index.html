@@ -33,6 +33,23 @@
     </div>
   </header>
 
+  <!-- Model architecture -->
+  <section class="section model-overview">
+    <div class="container">
+      <figure class="model-figure">
+        <img
+          src="model.png"
+          alt="Lip-sync model: melspectrogram and masked face frames enter dual encoders; decoder outputs synthesized frames; pre-trained lip-sync expert and visual discriminator provide sync and adversarial supervision."
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption class="model-caption">
+          Generator overview: audio-visual encoders, skip-connected decoder, L1 reconstruction, frozen SyncNet sync loss, and visual quality discriminator.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- Overview -->
   <section class="section">
     <div class="container narrow">
