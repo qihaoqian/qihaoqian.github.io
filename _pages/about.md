@@ -11,9 +11,13 @@ I am a Master's student in the [Existential Robotics Lab](https://existentialrob
 
 ## Publications
 
-**∇-SDF: Learning Euclidean Signed Distance Functions Online with Gradient-Augmented Octree Interpolation and Neural Residual**  
+**From Distances to Trajectories: Real-Time Signed Distance Function Mapping and Distance-Accelerated Motion Planning for UAVs**  
+Jason Stanley, Zhirui Dai, Qihao Qian, Tzu-Chin Ho, Tianxing Fan, Siddharth Saha, Christopher Barngrover, Ki Myung Brian Lee, Nikolay Atanasov  
+*arXiv 2026* · [arXiv](https://arxiv.org/abs/2607.19306)
+
+**OREN: Octree Residual Network for Real-Time Euclidean Signed Distance Mapping**  
 Zhirui Dai\*, Qihao Qian\*, Tianxing Fan, Nikolay Atanasov  
-*Submitted to IROS 2026* · [arXiv](https://arxiv.org/abs/2510.18999v1)
+*IROS 2026* · [Project Page](https://existentialrobotics.org/oren/) · [arXiv](https://arxiv.org/abs/2510.18999)
 
 **RailYolact: A Yolact Focused on Edge for Real-Time Rail Segmentation**  
 Qihao Qian  
