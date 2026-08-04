@@ -12,7 +12,7 @@ I am a Master's student in the [Existential Robotics Lab](https://existentialrob
 ## Publications
 
 **From Distances to Trajectories: Real-Time Signed Distance Function Mapping and Distance-Accelerated Motion Planning for UAVs**  
-Jason Stanley, Zhirui Dai, Qihao Qian, Tzu-Chin Ho, Tianxing Fan, Siddharth Saha, Christopher Barngrover, Ki Myung Brian Lee, Nikolay Atanasov  
+Jason Stanley\*, Zhirui Dai\*, Qihao Qian, Tzu-Chin Ho, Tianxing Fan, Siddharth Saha, Christopher Barngrover, Ki Myung Brian Lee, Nikolay Atanasov  
 *arXiv 2026* · [arXiv](https://arxiv.org/abs/2607.19306)
 
 **OREN: Octree Residual Network for Real-Time Euclidean Signed Distance Mapping**  
