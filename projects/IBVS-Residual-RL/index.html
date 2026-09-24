@@ -32,6 +32,23 @@
     </div>
   </header>
 
+  <!-- Demo -->
+  <section class="section media-section">
+    <div class="container">
+      <figure class="media-figure">
+        <img
+          src="example.gif"
+          alt="PyBullet demo showing eye-in-hand visual servoing on Franka Panda robot with RGB, depth, and segmentation views."
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption class="media-caption">
+          Simulation demo: eye-in-hand visual servoing with multi-view feedback in PyBullet.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
   <!-- Overview -->
   <section class="section">
     <div class="container narrow">
@@ -43,6 +60,23 @@
         <strong>residual RL agent</strong> (PPO) that learns a multiplicative correction to IBVS commands
         purely from interaction, without replacing the interpretable baseline controller.
       </p>
+    </div>
+  </section>
+
+  <!-- Pipeline architecture -->
+  <section class="section media-section pipeline-showcase">
+    <div class="container">
+      <figure class="media-figure">
+        <img
+          src="pipeline.png"
+          alt="Residual control architecture combining baseline IBVS path and PPO residual path, with action composition, simulation environment, and learning loop."
+          loading="lazy"
+          decoding="async"
+        />
+        <figcaption class="media-caption">
+          Residual control architecture: IBVS baseline, PPO residual branch, action composition, and closed-loop learning.
+        </figcaption>
+      </figure>
     </div>
   </section>
 
