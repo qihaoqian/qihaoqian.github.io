@@ -17,11 +17,11 @@ Zhirui Dai\*, Qihao Qian\*, Tianxing Fan, Nikolay Atanasov<br>
 
 **OREN-X: Octree Residual Network for Real-Time Multi-Modal Mapping**<br>
 Zhirui Dai, Qihao Qian, Dinh Minh Nguyen, Quan-Dung Pham, Kiana Bronder, Carlos Nieto-Granda, Yiyu Chen, Quan Nguyen, Nikolay Atanasov<br>
-*ICRA 2027, Under Review*
+*Preprint, 2026*
 
 **From Distances to Trajectories: Real-Time Signed Distance Function Mapping and Distance-Accelerated Motion Planning for UAVs**<br>
 Jason Stanley\*, Zhirui Dai\*, Qihao Qian, Tzu-Chin Ho, Tianxing Fan, Siddharth Saha, Christopher Barngrover, Ki Myung Brian Lee, Nikolay Atanasov<br>
-*Autonomous Robots, Under Review* · [arXiv](https://arxiv.org/abs/2607.19306)
+*Preprint, 2026* · [arXiv](https://arxiv.org/abs/2607.19306)
 
 **RailYolact: A Yolact Focused on Edge for Real-Time Rail Segmentation**<br>
 Qihao Qian<br>
